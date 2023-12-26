@@ -5,7 +5,6 @@ import random
 import pygame as pg
 from pygame.sprite import AbstractGroup
 import time
-import random
 
 WIDTH = 1600
 HEIGHT = 900
@@ -99,7 +98,7 @@ class Card(pg.sprite.Sprite):
         self.r = r
         self.s = s
     
-    def number(self) -> int:
+    def __int__(self) -> int:
         '''
         カードの数字を返す関数
         戻り値 num: カードの数字
