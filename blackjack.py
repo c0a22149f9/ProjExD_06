@@ -1,17 +1,19 @@
 import os
 import sys
 import math
-import pygame as pg
 import random
+import pygame as pg
+from pygame.sprite import AbstractGroup
+import time
 
 WIDTH = 1600
 HEIGHT = 900
 MAIN_DIR = os.path.split(os.path.abspath(__file__))[0]
+ROUND_NOW = 0  # 今何ラウンド目か
 
-
-class Card():
+class Card(pg.sprite.Sprite):
     '''
-    カードの情報を保存し、絵柄と数字を返すクラス
+    カードに関するクラス
     '''
     card = {
         "h":
@@ -83,13 +85,16 @@ class Card():
                 "None": "back@2x.png"
             }
         }
-    
     suits = ['h', 's', 'd', 'k']
 
-    ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
+    ranks = ["A","2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
     
-    def __init__(self, s, r):
-        self.s = s
+    def __init__(self, s: str, r: str):
+        '''
+        カード画像のSurfaceを生成する
+        引数1 s: カードの絵柄
+        引数2 r: カードの数字
+        '''
         self.r = r
         self.s = s
     
@@ -129,7 +134,6 @@ class Deck():
         '''
         if len(self.cards) == 0:
             return
-        
         return self.cards.pop()
 
 
@@ -148,6 +152,29 @@ class Image(pg.sprite.Sprite):
         self.image = pg.transform.rotozoom(pg.image.load(f'{MAIN_DIR}/playingcard-mini/{Card.card[s][r]}'), 0, 1.5)
         self.rect = self.image.get_rect()
         self.rect.center = xy
+
+
+class Player():
+    '''
+    プレイヤーのトータルを保存し、バースト判定を行うクラス
+    '''
+    def __init__(self):
+        self.total = 0
+        self.ofer = False
+        
+    def match(self):
+        '''
+        トータルからバーストしていないか確認する関数
+        '''
+        if self.total == 21:
+            return True
+        
+        elif self.total > 21:
+            return True
+        
+        else:
+            return False
+
     
 class Chip():
     """
@@ -182,28 +209,8 @@ class Chip():
         else:
             self.image_nb = self.font.render(f"Bet: {self.now_bet}", 0, self.color)
             screen.blit(self.image_nb, self.rect_nb)
-            
-class Player():
-    '''
-    プレイヤーのトータルを保存し、バースト判定を行うクラス
-    '''
-    def __init__(self):
-        self.total = 0
-        self.ofer = False
-        
-    def match(self):
-        '''
-        トータルからバーストしていないか確認する関数
-        '''
-        if self.total == 21:
-            return True
-        
-        
-        elif self.total < 21:
-            return True
-        
-        else:
-            return False
+
+
 
 '''
 class Game():
@@ -300,15 +307,40 @@ class Stand(pg.sprite.Sprite):
             self.kill()
 
 
+class Round:
+    """
+    ラウンド数に関するクラス
+    """
+    def __init__(self, round_max: int):
+        """
+        ラウンド数を数えたい
+        引数 round_max: ゲームを何回行うか
+        """
+        self.round_max = round_max
+
+    def update(self, screen:pg.Surface):
+        """
+        ラウンド数を更新したい
+        """
+        font = pg.font.SysFont(None, 100)
+        text = font.render("round "+str(ROUND_NOW)+"/"+str(self.round_max), True, (0, 255, 255))
+        screen.blit(text, [1200, 0])
+        
+
 def main():
+    global ROUND_NOW
     pg.display.set_caption('black jack')
     screen = pg.display.set_mode((WIDTH, HEIGHT))  
+    chip = Chip(200)
     screen.fill((70, 128, 79))
     pg.mouse.set_visible(True)  # マウスカーソル表示
+
     
     player_cards = pg.sprite.Group()  # プレイヤーのカードを保存するスプリットグループ
     dealer_cards = pg.sprite.Group()  # ディーラーのカードを保存するスプリットグループ
     #buttons = pg.sprite.Group()
+    hit = pg.sprite.Group()
+    stand = pg.sprite.Group()
     
     p = Player()
     d = Player()
@@ -322,13 +354,41 @@ def main():
     p.total += int(p1) + int(p2)
     
     
-    print(p.total)
-    print(d.total)
+    round_max = 1  # 何ラウンドゲームを行うか
+    round_flag = 1  # ラウンド数設定画面か否か
+    card = Card("d",'A')
+    clock = pg.time.Clock()
+    
+    hit_num = 0  # プレイヤーがそのラウンドでヒットした回数
+
+    while round_flag:  # ラウンド数設定
+        screen.fill((70, 128, 79))
+        key_lst = pg.key.get_pressed()
+        
+        font = pg.font.SysFont(None, 50)
+        text1 = font.render("Set the number of rounds using the arrow keys.", True, (0, 255, 255))
+        text2 = font.render("Confirm with enter key.", True, (0, 255, 255))
+        screen.blit(text1, [0, 0])
+        screen.blit(text2, [0, 50])
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                return
+            if event.type == pg.KEYDOWN and event.key == pg.K_UP:  # 上キーで増やす
+                round_max += 1
+            if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:  # 下キーで減らす
+                if round_max > 1:
+                    round_max -= 1
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:  # リターンキーで決定
+                round_flag = 0
+        round = Round(round_max)
+        round.update(screen)
+        pg.display.update()
+
     tmr = 0
     z = 0
     b = 0
     clock = pg.time.Clock()
-    tmr = 0
     hit_num = 0  # プレイヤーがそのラウンドでヒットした回数
 
 
@@ -345,51 +405,93 @@ def main():
             
             if event.type == pg.QUIT:
                 return
-            
-            if event.type == pg.KEYDOWN:
-                if event.key == pg.K_h:
-                    a = deck.draw()
-                    player_cards.add(Image(str(a), a.r, (950+b, 900-225)))
-                    p.total += int(a)
-                    b += 100
+
+            if chip.bet_flag == 0:
+                screen.fill((70, 128, 79))
+                if event.type == pg.KEYDOWN and event.key == pg.K_UP:
+                    if chip.bet < chip.value :
+                        chip.bet += 1
+                if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
+                    if chip.bet > 0:
+                        chip.bet -= 1
+                if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                    chip.bet_flag = 1
+                    chip.now_bet = chip.bet
+                    chip.value -= chip.bet
+                    chip.bet = 0
+                    
+            if chip.bet_flag == 1:
+                Flag_game = True
+                draw_text(screen, "HIT(h) or STAND(s)", 100, 50, 700)
+                print(Flag_game, p.total)
+                if Flag_game == True:
+                    if event.type == pg.KEYDOWN:
+                        if event.key == pg.K_h:
+                            a = deck.draw()
+                            player_cards.add(Image(str(a), a.r, (950+b, 900-225)))
+                            p.total += int(a)
+                            b += 100
+                            if p.total > 21:
+                                Flag_game = False
+                                #break
+
+                        elif event.key == pg.K_s:
+                            d2 = deck.draw()  # 裏の画像を普通のトランプにかきかえ
+                            d.total += int(d1) + int(d2)
+                            if d.total >= 18:
+                                Flag_game = False
+                                break
+                            else:
+                                while d.total < 18:
+                                    x = deck.draw()
+                                    dealer_cards.add(Image(str(x), x.r, (950+z, 225)))
+                                    d.total += int(x)
+                                    z += 100
+                                    if d.total >= 18:
+                                        Flag_game = False
+                                        break
+                                    
+                if Flag_game == False:
                     if p.total > 21:
-                        Flag_game = False
-                        break
-                elif event.key == pg.K_s:
-                    d2 = deck.draw()  # 裏の画像を普通のトランプにかきかえ
-                    d.total += int(d1) + int(d2)
-                    if d.total >= 18:
-                        Flag_game = False
-                        break
-                    else:
-                        while d.total < 18:
-                            x = deck.draw()
-                            dealer_cards.add(Image(str(x), x.r, (950+z, 225)))
-                            d.total += int(x)
-                            z += 100
-                            Flag_game = False
-                            break
-        if Flag_game == False:
-            if p.total > 21:
-                draw_text(screen, "YOU LOSE", 100, 100, 550)
-            elif p.total < 22 and d.total < 22:
-                if p.total < d.total:
-                    draw_text(screen, "YOU LOSE", 100, 100, 550)
-                else:
-                    draw_text(screen, "YOU WIN", 100, 100, 550)
-            else: 
-                draw_text(screen, "YOU WIN", 100, 100, 550)
-            
-        player_cards.add(Image(str(p1), p1.r, (750, 900-225)))
-        player_cards.add(Image(str(p2), p2.r, (850, 900-225)))
-        dealer_cards.add(Image(str(d1), d1.r, (750, 225)))
-        dealer_cards.add(Image(str(d2), d2.r, (750+100*1, 225)))
+                        draw_text(screen, "YOU LOSE", 100, 100, 550)
+                        #time.sleep(2)
+                        #return
+                    
+                    elif p.total < 22 and d.total < 22:
+                        if p.total < d.total:
+                            draw_text(screen, "YOU LOSE", 100, 100, 550)
+                            #time.sleep(2)
+                            #return
+                        else:
+                            draw_text(screen, "YOU WIN", 100, 100, 550)
+                            #time.sleep(2)
+                            #return
+                        
+                    else: 
+                        draw_text(screen, "YOU WIN", 100, 100, 550)
+                        #time.sleep(2)
+                        #return
+                '''    
+                # s押下でスタンド
+                if event.type == pg.KEYDOWN and event.key == pg.K_s:
+                    hit_num = 0  # ヒット回数のリセット
+                    stand.add(Stand(60))
+                
+                # h押下でヒット
+                if event.type == pg.KEYDOWN and event.key == pg.K_h:
+                    hit_num += 1
+                    p3 = deck.draw()
+                    p.total += int(p3)
+                    player_cards.add(Image(str(p3), p3.r, (850+hit_num*100, 900-225)))
+                    print(p.total)
+                    if p.match() == False:
+                        pg.display.update()
+                        time.sleep(2)
+                        return
+               '''
         player_cards.draw(screen)
         dealer_cards.draw(screen)
-        
-        #buttons.add(Button('hit', (255, 0, 0), (50, 50), (0, 0)))
-        #buttons.update()
-        pg.display.update()
+        chip.update(screen)
         hit.update(screen)
         stand.update(screen)
         pg.display.update()
