@@ -5,12 +5,17 @@ import random
 import pygame as pg
 from pygame.sprite import AbstractGroup
 import time
+import random
 
 WIDTH = 1600
 HEIGHT = 900
 MAIN_DIR = os.path.split(os.path.abspath(__file__))[0]
+ROUND_NOW = 0  # 今何ラウンド目か
 
-class Card():
+class Card(pg.sprite.Sprite):
+    '''
+    カードに関するクラス
+    '''
     card = {
         "h":
             {
@@ -81,22 +86,23 @@ class Card():
                 "None": "back@2x.png"
             }
         }
-    
     suits = ['h', 's', 'd', 'k']
 
-    ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
+    ranks = ["A","2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
     
-    def __init__(self, s, r):
-        self.s = s
+    def __init__(self, s: str, r: str):
+        '''
+        カード画像のSurfaceを生成する
+        引数1 s: カードの絵柄
+        引数2 r: カードの数字
+        '''
         self.r = r
-        #self.img = pg.transform.rotozoom(pg.image.load(f'{MAIN_DIR}/playingcard-mini/{__class__.card[s][r]}'), 0, 2.0)
-        #self.rct = self.img.get_rect()
-        #self.rct.center = (800, 450)
+        self.s = s
     
-    def __int__(self) -> int:
+    def number(self) -> int:
         '''
         カードの数字を返す関数
-        戻り値num: カードの数字
+        戻り値 num: カードの数字
         '''
         if self.r == 'J' or self.r == 'Q' or self.r == 'K':
             num = 10
@@ -108,9 +114,6 @@ class Card():
     
     def __str__(self):
         return self.s
-    
-    #def update(self, screen: pg.Surface):
-    #    screen.blit(self.img, self.rct)
 
 
 class Deck():
@@ -132,8 +135,8 @@ class Deck():
         '''
         if len(self.cards) == 0:
             return
-        
         return self.cards.pop()
+
 
 class Image(pg.sprite.Sprite):
     '''
@@ -150,6 +153,29 @@ class Image(pg.sprite.Sprite):
         self.image = pg.transform.rotozoom(pg.image.load(f'{MAIN_DIR}/playingcard-mini/{Card.card[s][r]}'), 0, 1.5)
         self.rect = self.image.get_rect()
         self.rect.center = xy
+
+
+class Player():
+    '''
+    プレイヤーのトータルを保存し、バースト判定を行うクラス
+    '''
+    def __init__(self):
+        self.total = 0
+        self.ofer = False
+        
+    def match(self):
+        '''
+        トータルからバーストしていないか確認する関数
+        '''
+        if self.total == 21:
+            return True
+        
+        elif self.total > 21:
+            return True
+        
+        else:
+            return False
+
     
 class Chip():
     """
@@ -184,27 +210,7 @@ class Chip():
         else:
             self.image_nb = self.font.render(f"Bet: {self.now_bet}", 0, self.color)
             screen.blit(self.image_nb, self.rect_nb)
-            
-class Player():
-    '''
-    プレイヤーのトータルを保存し、バースト判定を行うクラス
-    '''
-    def __init__(self):
-        self.total = 0
-        self.ofer = False
-        
-    def match(self):
-        '''
-        トータルからバーストしていないか確認する関数
-        '''
-        if self.total == 21:
-            return True
-        
-        elif self.total < 21:
-            return True
-          
-        else:
-            return False
+
 
 
 '''
@@ -302,7 +308,28 @@ class Stand(pg.sprite.Sprite):
             self.kill()
 
 
+class Round:
+    """
+    ラウンド数に関するクラス
+    """
+    def __init__(self, round_max: int):
+        """
+        ラウンド数を数えたい
+        引数 round_max: ゲームを何回行うか
+        """
+        self.round_max = round_max
+
+    def update(self, screen:pg.Surface):
+        """
+        ラウンド数を更新したい
+        """
+        font = pg.font.SysFont(None, 100)
+        text = font.render("round "+str(ROUND_NOW)+"/"+str(self.round_max), True, (0, 255, 255))
+        screen.blit(text, [1200, 0])
+        
+
 def main():
+    global ROUND_NOW
     pg.display.set_caption('black jack')
     screen = pg.display.set_mode((WIDTH, HEIGHT))  
     chip = Chip(200)
@@ -327,6 +354,37 @@ def main():
     
     p.total += int(p1) + int(p2)
     
+    
+    round_max = 1  # 何ラウンドゲームを行うか
+    round_flag = 1  # ラウンド数設定画面か否か
+    card = Card("d",'A')
+    clock = pg.time.Clock()
+    
+    hit_num = 0  # プレイヤーがそのラウンドでヒットした回数
+
+    while round_flag:  # ラウンド数設定
+        screen.fill((70, 128, 79))
+        key_lst = pg.key.get_pressed()
+        
+        font = pg.font.SysFont(None, 50)
+        text1 = font.render("Set the number of rounds using the arrow keys.", True, (0, 255, 255))
+        text2 = font.render("Confirm with enter key.", True, (0, 255, 255))
+        screen.blit(text1, [0, 0])
+        screen.blit(text2, [0, 50])
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                return
+            if event.type == pg.KEYDOWN and event.key == pg.K_UP:  # 上キーで増やす
+                round_max += 1
+            if event.type == pg.KEYDOWN and event.key == pg.K_DOWN:  # 下キーで減らす
+                if round_max > 1:
+                    round_max -= 1
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:  # リターンキーで決定
+                round_flag = 0
+        round = Round(round_max)
+        round.update(screen)
+        pg.display.update()
 
     tmr = 0
     z = 0
