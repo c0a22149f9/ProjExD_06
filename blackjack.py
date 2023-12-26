@@ -233,7 +233,7 @@ def draw_text(screen, text, size, x, y, font_path=None):
     screen.blit(text_surface, text_rect)
         
 
-class Hit(pg.sprite.Sprite):
+'''class Hit(pg.sprite.Sprite):
     """
     ヒットに関するクラス
     """
@@ -254,7 +254,7 @@ class Hit(pg.sprite.Sprite):
 
     def update(self, screen: pg.Surface):
         screen.blit(self.img, self.rct)
-
+        '''
 
 class Stand(pg.sprite.Sprite):
     """
@@ -304,7 +304,7 @@ def main():
     
     p.total += int(p1) + int(p2)
     
-
+    
     print(p.total)
     print(d.total)
     tmr = 0
@@ -322,7 +322,7 @@ def main():
                 return
         
             # h押下でヒット
-            if event.type == pg.KEYDOWN and event.key == pg.K_h:
+            '''if event.type == pg.KEYDOWN and event.key == pg.K_h:
                 hit_num += 1
                 p3 = deck.draw()
                 p.total += int(p3)
@@ -332,11 +332,46 @@ def main():
                     pg.display.update()
                     time.sleep(2)
                     return
+                    '''
             
             # s押下でスタンド
             if event.type == pg.KEYDOWN and event.key == pg.K_s:
                 hit_num = 0  # ヒット回数のリセット
                 stand.add(Stand(60))
+            
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_h:
+                    a = deck.draw()
+                    player_cards.add(Image(str(a), a.r, (950+b, 900-225)))
+                    p.total += int(a)
+                    b += 100
+                    if p.total > 21:
+                        Flag_game = False
+                        break
+                elif event.key == pg.K_s:
+                    d2 = deck.draw()  # 裏の画像を普通のトランプにかきかえ
+                    d.total += int(d1) + int(d2)
+                    if d.total >= 18:
+                        Flag_game = False
+                        break
+                    else:
+                        while d.total < 18:
+                            x = deck.draw()
+                            dealer_cards.add(Image(str(x), x.r, (950+z, 225)))
+                            d.total += int(x)
+                            z += 100
+                            Flag_game = False
+                            break
+        if Flag_game == False:
+            if p.total > 21:
+                draw_text(screen, "YOU LOSE", 100, 100, 550)
+            elif p.total < 22 and d.total < 22:
+                if p.total < d.total:
+                    draw_text(screen, "YOU LOSE", 100, 100, 550)
+                else:
+                    draw_text(screen, "YOU WIN", 100, 100, 550)
+            else: 
+                draw_text(screen, "YOU WIN", 100, 100, 550)
             
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_h:
